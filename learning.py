@@ -155,7 +155,7 @@ def train_trees(train_X, train_Y, test_X, test_Y, verbose = False, pickle = Fals
 		store_obj(clf, "classifiers/clf_trees" + suffix)
 	return scaler, clf
 
-def guess_dataset(diamonds, omega_larmor, training_percent = .75, pickle = False, suffix = ""):
+def guess_dataset(diamonds, omega_larmor, min_dip_ind = 3220, training_percent = .75, pickle = False, suffix = ""):
 	train_X = [] # feature vectors
 	train_Y = [] # classifications
 	test_X = []
@@ -171,7 +171,7 @@ def guess_dataset(diamonds, omega_larmor, training_percent = .75, pickle = False
 		windows = diamond["windows"]
 		spin_dict = {}
 		for dii in range(len(dip_inds)):
-			if diamond["good_fits"][dii] and dip_inds[dii] >= 3220:
+			if diamond["good_fits"][dii] and dip_inds[dii] >= min_dip_ind:
 				dip_ind = dip_inds[dii]
 				res_tau = tau[dip_ind]
 				for phi, x in zip(diamond["phis_list"][dii], diamond["xs_list"][dii]):
@@ -179,20 +179,18 @@ def guess_dataset(diamonds, omega_larmor, training_percent = .75, pickle = False
 						A, B = analysis.calc_A_B(cosphi, res_tau, omega_larmor, omega_tilde)
 						if analysis.valid_A_B(A, B):
 							if (dip_ind, phi, x) in spin_dict:
-								spin_dict[(dip_ind, phi, x)] += [(A, B)]
+								spin_dict[(dip_ind, phi, x)] += [(A, B, cosphi)]
 							else:
-								spin_dict[(dip_ind, phi, x)] = [(A, B)]
+								spin_dict[(dip_ind, phi, x)] = [(A, B, cosphi)]
 		for k in spin_dict.keys():
 			err = []
-			for A, B in spin_dict[k]:
+			for A, B, _ in spin_dict[k]:
 				err.append(error_fun(analysis.calc_M_single(A, B, N, omega_larmor, tau), data))
 			min_err_ind = np.argmin(err)
-			best_A, best_B = spin_dict[k][min_err_ind]
+			best_A, best_B, best_cosphi = spin_dict[k][min_err_ind]
 			best_err = err[min_err_ind]
-			dip_ind, phi, x = k
-			res_tau = tau[dip_ind]
-			M = data[dip_ind]
-			features = [phi, x, best_A-omega_larmor, best_B, best_err, res_tau, M]
+			_, _, x = k
+			features = [best_cosphi, x, best_A, best_B, best_err]
 			tag = 0
 			for spin in set(zip(diamond["A"], np.abs(diamond["B"]))):
 				if is_fit(best_A, best_B, spin, A_acc = .5, B_acc = 2):
@@ -211,6 +209,7 @@ def guess_dataset(diamonds, omega_larmor, training_percent = .75, pickle = False
 		store_obj(dataset, "datasets/guess_dataset" + suffix)
 	return train_X, train_Y, test_X, test_Y
 
+"""
 if __name__ == "__main__":
 	B_field = 0.0403555 # Teslas
 	gam_c = 67.262 * 10 ** 6 # Gyromagnetic ratio for a single c13 nucleus in rad s-1 T-1
@@ -246,15 +245,15 @@ if __name__ == "__main__":
 		dataset = load_obj("datasets/guess_dataset" + "_limited")
 		print "train svm"
 		train_svm(dataset["train_X"], dataset["train_Y"], dataset["test_X"], dataset["test_Y"], verbose = True, pickle = True, suffix = "guess_limited")
-
-	"""
+"""
+"""
 	for diamond_num in range(num_diamonds):
 		print "loading diamond ", diamond_num
 		diamond = load_obj("diamonds/diamond_" + str(diamond_num))
 		print "total fits: ", len(diamond["successful_fits"])
 		print "successful fits: ", sum(diamond["successful_fits"])
 		print "good fits: ", sum(diamond["good_fits"])
-	"""
+"""
 """
 # load diamond files that were saved by noisy_dataset.py
 def load_diamonds(num_diamonds, diamond_dir):

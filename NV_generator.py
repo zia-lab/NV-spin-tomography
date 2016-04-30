@@ -66,13 +66,14 @@ def generate_NV(c13_concentration=0.011,N=25,sphere = True):
 	r, A, B, costheta, sintheta = zip(*c13_spins)
 	return np.array(A), np.array(B), np.array(r), np.array(costheta), np.array(sintheta)
 
-def generate_spins(num_spins, enforce_bound = True, coupling_bound = 150 * 2 * pi * 1e3, c13_concentration = 0.011, abs_val = False, verbose = False):
-	N = int(np.ceil(((num_spins*1.0)/c13_concentration) ** (1.0/3)))
+def generate_spins(num_spins, enforce_bound = True, coupling_bound = 150 * 2 * pi * 1e3, c13_concentration = 0.011, N = None, abs_val = False, verbose = False):
+	if N == None:
+		N = int(np.ceil(((num_spins*1.0)/c13_concentration) ** (1.0/3)))
 	if verbose:
 		print "N:", N
-	A, B, r, costheta, sintheta = generate_NV(N = N)
+	A, B, r, costheta, sintheta = generate_NV(N = N, c13_concentration = c13_concentration)
 	while enforce_bound and (np.any(A ** 2 + B ** 2 > (coupling_bound) ** 2)):
-		A, B, r, costheta, sintheta = generate_NV(N = N)
+		A, B, r, costheta, sintheta = generate_NV(N = N, c13_concentration = c13_concentration)
 	if abs_val:
 		B = np.abs(B)
 	return A, B, r, costheta, sintheta

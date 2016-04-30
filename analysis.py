@@ -319,9 +319,9 @@ def analyze_dip(dip_ind, tau, data_func, omega_larmor, spin_dict = {}, error_tol
 			A, B = calc_A_B(cosphi, res_tau, omega_larmor, omega_tilde)
 			if valid_A_B(A, B):
 				if (dip_ind, phi, x) in spin_dict:
-					spin_dict[(dip_ind, phi, x)] += [(A, B)]
+					spin_dict[(dip_ind, phi, x)] += [(A, B, cosphi)]
 				else:
-					spin_dict[(dip_ind, phi, x)] = [(A, B)]
+					spin_dict[(dip_ind, phi, x)] = [(A, B, cosphi)]
 	return spin_dict
 
 # takes in a dict of the type returned by analyze_dip and for each entry which represents a particular spin found at a particular dip
@@ -331,20 +331,18 @@ def choose_spin_guesses(spin_dict, N, omega_larmor, tau, data, classifier, x_min
 	all_guess_As, all_guess_Bs, select_As, select_Bs = [], [], [], []
 	for k in spin_dict.keys():
 		err = []
-		for A, B in spin_dict[k]:
+		for A, B, _ in spin_dict[k]:
 			all_guess_As.append(A)
 			all_guess_Bs.append(B)
 			err.append(error_fun(calc_M_single(A, B, N, omega_larmor, tau), data))
 		min_err_ind = np.argmin(err)
-		best_A, best_B = spin_dict[k][min_err_ind]
+		best_A, best_B, best_cosphi = spin_dict[k][min_err_ind]
 		select_As.append(best_A)
 		select_Bs.append(best_B)
 		best_err = err[min_err_ind]
-		dip_ind, phi, x = k
-		res_tau = tau[dip_ind]
-		M = data[dip_ind]
-		features = [phi, x, best_A-omega_larmor, best_B, best_err, res_tau, M]
-		if classifier(features) and x >= x_min: #and x >= 1.25:
+		_, _, x = k
+		features = [best_cosphi, x, best_A, best_B, best_err]
+		if classifier(features) and x >= x_min:
 			guess_As.append(best_A)
 			guess_Bs.append(best_B)
 			dataerrs.append(best_err)
@@ -373,6 +371,9 @@ def cluster_spin_guesses(guess_As, guess_Bs, dataerrs, eps = .075, min_samples =
 #B_background = 2 * mag * (np.random.rand(400))
 background_dict = learning.load_obj("background_A_B")
 A_background, B_background = background_dict["A_background"], background_dict["B_background"]
+
+#A_background, B_background, _, _, _ = NV_generator.generate_spins(400)
+
 
 # given guess_As and guess_Bs, this function considers all ways of removing num_remove spins from the guess list
 # it compares all of these possibilities along with not taking anything out in terms of the error from this subset to the data
@@ -414,8 +415,8 @@ def analyze_diamond(data_func, N, omega_larmor, verbose = False, plots = False):
 		if dip_ind >= 3220: # 15 microseconds and on
 			spin_dict = analyze_dip(dip_ind, tau, data_func, omega_larmor, spin_dict, N_vals = np.arange(0,256,2),
 				error_tol = .1/64, verbose = verbose, plots = plots)
-	guess_scaler = learning.load_obj("classifiers/scaler_svm_rbfguess_limited_3220_C1_29diamonds")
-	guess_clf = learning.load_obj("classifiers/clf_svm_rbfguess_limited_3220_C1_29diamonds")
+	guess_scaler = learning.load_obj("classifiers/scaler_svm_rbf_di3220_29diamonds_cxABe")
+	guess_clf = learning.load_obj("classifiers/clf_svm_rbf_di3220_29diamonds_cxABe")
 	def guess_classifier(features):
 		return guess_clf.predict(guess_scaler.transform([features]))
 	guess_As, guess_Bs, dataerrs, all_guess_As, all_guess_Bs, select_As, select_Bs = choose_spin_guesses(spin_dict, N, omega_larmor, tau, data, guess_classifier, x_min = 1, error_fun = squared_error)
