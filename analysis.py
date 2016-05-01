@@ -369,11 +369,14 @@ def cluster_spin_guesses(guess_As, guess_Bs, dataerrs, eps = .075, min_samples =
 # an approximation of the background due to the weakly coupled spins
 #A_background = 4 * mag * (np.random.rand(400) - .5)
 #B_background = 2 * mag * (np.random.rand(400))
-background_dict = learning.load_obj("background_A_B")
-A_background, B_background = background_dict["A_background"], background_dict["B_background"]
+#background_dict = learning.load_obj("background_A_B")
+#A_background, B_background = background_dict["A_background"], background_dict["B_background"]
 
-#A_background, B_background, _, _, _ = NV_generator.generate_spins(400)
-
+#Ab, Bb, rb, costhetab, sinthetab = NV_generator.generate_spins(500)
+#background_dict = {"A" : Ab, "B" : Bb, "r" : rb, "costheta" : costhetab, "sintheta" : sinthetab}
+#learning.store_obj(background_dict, "datasets/background_spins_" + len(Ab))
+background_dict = learning.load_obj("datasets/background_spins_472")
+A_background, B_background = background_dict["A"], background_dict["B"]
 
 # given guess_As and guess_Bs, this function considers all ways of removing num_remove spins from the guess list
 # it compares all of these possibilities along with not taking anything out in terms of the error from this subset to the data
@@ -389,7 +392,12 @@ def remove_spins(guess_As, guess_Bs, N, omega_larmor, tau, data, num_remove = 1,
 				ans.append(j)
 		return ans
 	guess_As, guess_Bs = np.array(guess_As), np.array(guess_Bs)
-	M_background = calc_M(A_background, B_background, N, omega_larmor, tau)
+#	background_inds = np.where(A_background ** 2 + B_background ** 2 < min(guess_As ** 2 + guess_Bs ** 2))[0]
+#	if verbose:
+#		print "background inds start with: ", min(background_inds)
+#		print "number of background spins included: ", len(background_inds)
+	min_background_ind = max(50, len(guess_As))
+	M_background = calc_M(A_background[min_background_ind:], B_background[min_background_ind:], N, omega_larmor, tau)
 	err, As, Bs = [], [], []
 	for subset in subset_size_range(range(len(guess_As)), len(guess_As) - num_remove, len(guess_As) - 1):
 		subset = np.array(subset)
@@ -401,9 +409,9 @@ def remove_spins(guess_As, guess_Bs, N, omega_larmor, tau, data, num_remove = 1,
 	if verbose:
 		print "new error, old error: ", err[best_ind], orig_error
 	if orig_error > err[best_ind]:
-		return As[best_ind], Bs[best_ind], num_remove
+		return As[best_ind], Bs[best_ind], num_remove, M_background
 	else:
-		return guess_As, guess_Bs, num_remove + 1
+		return guess_As, guess_Bs, num_remove + 1, M_background
 
 def analyze_diamond(data_func, N, omega_larmor, verbose = False, plots = False):
 	tau = choose_tau_params(N)
@@ -423,8 +431,8 @@ def analyze_diamond(data_func, N, omega_larmor, verbose = False, plots = False):
 	cluster_As, cluster_Bs, cluster_dataerrs = cluster_spin_guesses(guess_As, guess_Bs, dataerrs, eps = .075, min_samples = 1)
 	As, Bs, num_remove = cluster_As, cluster_Bs, 1
 	while num_remove <= 2:
-		As, Bs, num_remove = remove_spins(As, Bs, N, omega_larmor, tau, data, num_remove = num_remove, error_fun = squared_error)
-	return As, Bs, all_guess_As, all_guess_Bs, select_As, select_Bs, guess_As, guess_Bs, cluster_As, cluster_Bs
+		As, Bs, num_remove, M_background = remove_spins(As, Bs, N, omega_larmor, tau, data, num_remove = num_remove, error_fun = squared_error, verbose=verbose)
+	return As, Bs, all_guess_As, all_guess_Bs, select_As, select_Bs, guess_As, guess_Bs, cluster_As, cluster_Bs, M_background
 
 """
 
