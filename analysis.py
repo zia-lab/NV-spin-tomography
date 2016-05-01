@@ -369,14 +369,14 @@ def cluster_spin_guesses(guess_As, guess_Bs, dataerrs, eps = .075, min_samples =
 # an approximation of the background due to the weakly coupled spins
 #A_background = 4 * mag * (np.random.rand(400) - .5)
 #B_background = 2 * mag * (np.random.rand(400))
-#background_dict = learning.load_obj("background_A_B")
-#A_background, B_background = background_dict["A_background"], background_dict["B_background"]
+background_dict = learning.load_obj("background_A_B")
+A_background, B_background = background_dict["A_background"], background_dict["B_background"]
 
 #Ab, Bb, rb, costhetab, sinthetab = NV_generator.generate_spins(500)
 #background_dict = {"A" : Ab, "B" : Bb, "r" : rb, "costheta" : costhetab, "sintheta" : sinthetab}
 #learning.store_obj(background_dict, "datasets/background_spins_" + len(Ab))
-background_dict = learning.load_obj("datasets/background_spins_472")
-A_background, B_background = background_dict["A"], background_dict["B"]
+#background_dict = learning.load_obj("datasets/background_spins_472")
+#A_background, B_background = background_dict["A"], background_dict["B"]
 
 # given guess_As and guess_Bs, this function considers all ways of removing num_remove spins from the guess list
 # it compares all of these possibilities along with not taking anything out in terms of the error from this subset to the data
@@ -396,8 +396,9 @@ def remove_spins(guess_As, guess_Bs, N, omega_larmor, tau, data, num_remove = 1,
 #	if verbose:
 #		print "background inds start with: ", min(background_inds)
 #		print "number of background spins included: ", len(background_inds)
-	min_background_ind = max(50, len(guess_As))
-	M_background = calc_M(A_background[min_background_ind:], B_background[min_background_ind:], N, omega_larmor, tau)
+#	min_background_ind = max(50, len(guess_As))
+#	M_background = calc_M(A_background[min_background_ind:], B_background[min_background_ind:], N, omega_larmor, tau)
+	M_background = calc_M(A_background, B_background, N, omega_larmor, tau)
 	err, As, Bs = [], [], []
 	for subset in subset_size_range(range(len(guess_As)), len(guess_As) - num_remove, len(guess_As) - 1):
 		subset = np.array(subset)
