@@ -205,7 +205,7 @@ def spin_fit(N_vals, N_data, error_fun = squared_error, verbose = True, plots = 
 			plt.show()
 		return params[ind], spins_found[ind]
 
-def repeated_spin_fit(N_vals, N_data, error_tol = .1/64, error_fun = squared_error, num_subsets = 4, verbose = True, plots = True):
+def repeated_spin_fit(N_vals, N_data, error_fun = squared_error, num_subsets = 4, verbose = True, plots = True):
 	spin_fits, scaled_errors = [], []
 	for subset in [np.arange(int(len(N_vals) * r)) for r in np.linspace(0, 1, 1 + num_subsets)[1:]]:
 		try:
@@ -301,7 +301,7 @@ def analyze_dip(dip_ind, tau, data_func, omega_larmor, spin_dict = {}, error_tol
 	res_tau = tau[dip_ind]
 	N_data = data_func(N_vals, res_tau)
 	try:
-		phis, xs, scaled_error = repeated_spin_fit(N_vals, N_data, error_tol = error_tol, error_fun = error_fun,
+		phis, xs, scaled_error = repeated_spin_fit(N_vals, N_data, error_fun = error_fun,
 			num_subsets = num_subsets, verbose = verbose, plots = plots)
 	except FitError:
 		if verbose:
@@ -410,9 +410,9 @@ def remove_spins(guess_As, guess_Bs, N, omega_larmor, tau, data, num_remove = 1,
 	if verbose:
 		print "new error, old error: ", err[best_ind], orig_error
 	if orig_error > err[best_ind]:
-		return As[best_ind], Bs[best_ind], num_remove, M_background
+		return As[best_ind], Bs[best_ind], num_remove
 	else:
-		return guess_As, guess_Bs, num_remove + 1, M_background
+		return guess_As, guess_Bs, num_remove + 1
 
 def analyze_diamond(data_func, N, omega_larmor, verbose = False, plots = False):
 	tau = choose_tau_params(N)
@@ -432,8 +432,8 @@ def analyze_diamond(data_func, N, omega_larmor, verbose = False, plots = False):
 	cluster_As, cluster_Bs, cluster_dataerrs = cluster_spin_guesses(guess_As, guess_Bs, dataerrs, eps = .075, min_samples = 1)
 	As, Bs, num_remove = cluster_As, cluster_Bs, 1
 	while num_remove <= 2:
-		As, Bs, num_remove, M_background = remove_spins(As, Bs, N, omega_larmor, tau, data, num_remove = num_remove, error_fun = squared_error, verbose=verbose)
-	return As, Bs, all_guess_As, all_guess_Bs, select_As, select_Bs, guess_As, guess_Bs, cluster_As, cluster_Bs, M_background
+		As, Bs, num_remove = remove_spins(As, Bs, N, omega_larmor, tau, data, num_remove = num_remove, error_fun = squared_error, verbose=verbose)
+	return As, Bs, all_guess_As, all_guess_Bs, select_As, select_Bs, guess_As, guess_Bs, cluster_As, cluster_Bs
 
 """
 
