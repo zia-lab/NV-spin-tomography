@@ -1,5 +1,11 @@
+# NV-spin-tomography Michael Scheer mgscheer@gmail.com
+
+# generating random NV centers
+
 import numpy as np
 import itertools
+
+# For explanation of the formulas used here, see chapter 2 of thesis.
 
 # Constants
 # lattice constant of diamond
@@ -43,7 +49,7 @@ def generate_NV(c13_concentration=0.011,N=25,sphere = True):
 	NVPos = center * i + center * j + center * k
 
 	spin_list = []
-	#Calculate Hyperfine strength for all gridpoints
+	#Calculate hyperfine strength for all gridpoints
 	for n, m, l in itertools.product(range(N), repeat = 3):
 		if (n,m,l) != (center, center, center): # all lattice pairs except the nitrogen and vacancy
 			lattice_position = n * i + m * j + l * k - NVPos # relative position of a lattice point to the NV center
@@ -66,6 +72,8 @@ def generate_NV(c13_concentration=0.011,N=25,sphere = True):
 	r, A, B, costheta, sintheta = zip(*c13_spins)
 	return np.array(A), np.array(B), np.array(r), np.array(costheta), np.array(sintheta)
 
+# Generates C13s near a NV center. The number of C13s is roughly num_spins if N==None.
+# If enforce_bound = True, the random generation will repeat until there are no couplings greater than coupling_bound.
 def generate_spins(num_spins, enforce_bound = True, coupling_bound = 150 * 2 * pi * 1e3, c13_concentration = 0.011, N = None, abs_val = False, verbose = False):
 	if N == None:
 		N = int(np.ceil(((num_spins*1.0)/c13_concentration) ** (1.0/3)))

@@ -1,3 +1,7 @@
+# NV-spin-tomography Michael Scheer mgscheer@gmail.com
+
+# the main code for the analysis
+
 import numpy as np
 import matplotlib.pyplot as plt
 import matplotlib.cm as cm
@@ -7,7 +11,7 @@ import operator, heapq, itertools, warnings
 import sklearn as sk
 import learning
 
-# scale of omega, used for printing paramaters nicely
+# frequency scale -- turns kHz into radial Hz. Used for printing paramaters nicely
 mag = 2 * np.pi * 1e3
 
 # a special error class that is thrown in this code when a fit does not work
@@ -17,17 +21,13 @@ class FitError(Exception):
 	def __str__(self):
 		return repr(self.value)
 
-# create a plot in the style originally sent us by Tim and Julia.
+# create a nice looking plot
 def initialize_data_plot(figsize = (10,5), xlims = None, ylims = [-1.05,1.05]):
 	fig,ax = plt.subplots(figsize=figsize)
 	ax.set_ylim(ylims)
 	if xlims is not None:
 		ax.set_xlim(xlims)
 	return fig, ax
-
-# calculates omega_tilde
-#def get_omega_tilde(A, B, omega_larmor):
-#    return np.sqrt((A + omega_larmor) ** 2 + B ** 2)
 
 # calculates the M function for a single spin A, B
 def calc_M_single(A,B,N,omega_larmor,tau):
@@ -61,15 +61,13 @@ def calc_A_B(cosphi, res_tau, omega_larmor, omega_tilde):
 	B = np.sqrt((1 - mz ** 2)) * omega_tilde
 	return A, np.abs(B)
 
-# firm bounds on omega_tilde.
-# Julia said they will throw out any diamond with a spin with coupling greater than 150 kHz.
-# this implies these bounds on omega.
+# Firm bounds on omega_tilde arising from an upper bound on hyperfine couplings
 def omega_bounds(omega_larmor, coupling_bound = 150 * mag):
 	upper_omega_bound = omega_larmor + coupling_bound
 	lower_omega_bound = omega_larmor - coupling_bound
 	return lower_omega_bound, upper_omega_bound
 
-# checks if the A, B pair violates the 150 kHz bound or not
+# checks if the A, B pair has a coupling larger than coupling_bound
 def valid_A_B(A, B, coupling_bound = 150 * mag):
 	return A ** 2 + B ** 2 <= coupling_bound ** 2
 
@@ -107,7 +105,7 @@ def find_peaks_from_fourier(coefs, freqs):
 
 # takes a list of frequencies that are peaks in a fourier spectrum, either of the real
 # or imaginary part as well as a number of spins to look for. It then approximates the frequencies
-#of the underlying product cosine functions that were in the signal.
+# of the underlying product cosine functions that were in the signal. See appendix C of thesis.
 def gen_freqs_from_fourier(freqs, num_spins):
 	# sort them in decreasing order
 	freqs = sorted(freqs, key=lambda x:-x)
@@ -145,6 +143,8 @@ def spin_fit_fun(N, *args):
 def squared_error(l1, l2):
 	return sum((l1 - l2) ** 2)
 
+# Use scipy.optimize.curve_fit to fit N_data to several spins using fit_fun. Requires a guess of the spin
+# parameters (phi's and x's) as param_guess
 def spin_fit_guess(N_vals, N_data, num_spins, param_guess, error_fun = squared_error, fit_fun = spin_fit_fun):
 	try:
 		with warnings.catch_warnings():
@@ -156,8 +156,9 @@ def spin_fit_guess(N_vals, N_data, num_spins, param_guess, error_fun = squared_e
 	except (RuntimeError, TypeError):
 		raise FitError("Failed to fit spins with N data.")
 
-# fit possibly several spins using a spin_fit_fun to N_data
+# fit possibly several spins using a fit_fun to N_data
 # for reference, see http://stackoverflow.com/questions/13405053/scipy-leastsq-fit-to-a-sine-wave-failing
+# and appendix C of thesis.
 def spin_fit(N_vals, N_data, error_fun = squared_error, verbose = True, plots = True, fit_fun = spin_fit_fun, extra_params = []):
 	coefs, freqs = sinusoid_coefs_fft(N_vals, N_data)
 	likely_freqs = find_peaks_from_fourier(coefs, freqs)
@@ -205,6 +206,8 @@ def spin_fit(N_vals, N_data, error_fun = squared_error, verbose = True, plots = 
 			plt.show()
 		return params[ind], spins_found[ind]
 
+# repeated attempts to fit N_vals and N_data using several spins. It tries subsets of the data of increasing length
+# and then uses the best result as a guess for one final fit of the whole data. See appendix C of thesis for more detail.
 def repeated_spin_fit(N_vals, N_data, error_fun = squared_error, num_subsets = 4,
 	fit_fun = spin_fit_fun, extra_params = [], verbose = True, plots = True):
 	spin_fits, scaled_errors = [], []
@@ -251,7 +254,8 @@ def repeated_spin_fit(N_vals, N_data, error_fun = squared_error, num_subsets = 4
 	#phis, xs = map(np.array, zip(*sorted(zip(phis, xs), key = lambda x:-x[1])))# sort phis in decreasing order by xs
 	return phis, xs, scaled_error    
 
-# creates a tau vector with parameters that are suitable for the N value
+# creates a tau vector that matches the tau from real data from Tim and Julia.
+# should be filled in with realistic tau vectors for other N in the future.
 def choose_tau_params(N, num_samples = 5100):
 	if N != 64:
 		raise FitError("N should be 64")
@@ -262,10 +266,8 @@ def choose_tau_params(N, num_samples = 5100):
 		tau = np.linspace(min_tau, max_tau, length)
 		return tau
 
-# finds resonances in a window of data. Assumes the difference between each index corresponds to time_unit seconds.
-# it finds all relative minima below fit_dips_below and keeps only the num_dips widest of them
-# returns the dip indices and the windows that define each dip, sorted by a measure of quality that accounts for both
-# isolation and depth of dip
+# finds local minima in the vector data as well as the intervals in which they are minima.
+# only finds dips below fit_dips_below and less wide than max_width if the parameters are not None.
 def find_resonances(data, fit_dips_below = None, max_width = None):
 	min_inds = (signal.argrelextrema(data, np.less)[0]).astype(int)
 	max_inds = (signal.argrelextrema(data, np.greater)[0]).astype(int)
@@ -280,7 +282,8 @@ def find_resonances(data, fit_dips_below = None, max_width = None):
 	# return dip_inds[sort_inds], windows[sort_inds]
 	return dip_inds, windows
 
-# Calculates all possible omega_tilde values for a given phi and x at a given res_tau
+# Calculates all possible omega_tilde values for a given phi and x at a given res_tau.
+# See chapter 4 of thesis.
 def calc_omega_tilde(phi, x, res_tau, omega_larmor):
 	beta = omega_larmor * res_tau
 	cosbeta, cosphi_0 = np.cos(beta), np.cos(phi)
@@ -300,10 +303,9 @@ def calc_omega_tilde(phi, x, res_tau, omega_larmor):
 						omega_cosphi.append(((alpha_base + 2 * np.pi * n)/res_tau, cosphi))
 	return omega_cosphi
 
-# for a given dip_ind, measures N data and fits it using analyze_tau. If the fit error is less than error_tol, it
-# fits spins_per_dip of the spins to an omega value and therefore to an A and B. If this A and B are within the bounds
-# it adds that spin to the spin_dict which was passed in. It returns the spin_dict and a boolean indicating if the fit
-# was successful or not.
+# for a given dip_ind, measures N data and fits it using repeated_spin_fit. If the fit error is less than error_tol,
+# it finds all possible A and B values for each fit spin. Each possible A and B value that is within the bounds (is_valid)
+# is added to spin_dict.
 def analyze_dip(dip_ind, tau, data_func, omega_larmor, spin_dict = {}, error_tol = .1/64,
 				N_vals = np.arange(0,256,2), error_fun = squared_error, fit_fun = spin_fit_fun, extra_params = [],
 				num_subsets = 4, verbose = False, plots = False):
@@ -335,7 +337,7 @@ def analyze_dip(dip_ind, tau, data_func, omega_larmor, spin_dict = {}, error_tol
 	return spin_dict
 
 # takes in a dict of the type returned by analyze_dip and for each entry which represents a particular spin found at a particular dip
-# it chooses the A, B value that minimizes the squared error from the tau data. It returns these A and B guesses along with the calculated errors.
+# it chooses the A, B value that minimizes the error_fun from the tau data. It returns these A and B guesses along with the calculated errors.
 def choose_spin_guesses(spin_dict, N, omega_larmor, tau, data, classifier, x_min = 1, error_fun = squared_error):
 	guess_As, guess_Bs, dataerrs = [], [], []
 	all_guess_As, all_guess_Bs, select_As, select_Bs = [], [], [], []
@@ -379,14 +381,10 @@ def cluster_spin_guesses(guess_As, guess_Bs, dataerrs, eps = .075, min_samples =
 # an approximation of the background due to the weakly coupled spins
 #A_background = 4 * mag * (np.random.rand(400) - .5)
 #B_background = 2 * mag * (np.random.rand(400))
+#background_dict = {"A_background" : A_background, "B_background" : B_background}
+#learning.store_obj(background_dict, "background_A_B")
 background_dict = learning.load_obj("background_A_B")
 A_background, B_background = background_dict["A_background"], background_dict["B_background"]
-
-#Ab, Bb, rb, costhetab, sinthetab = NV_generator.generate_spins(500)
-#background_dict = {"A" : Ab, "B" : Bb, "r" : rb, "costheta" : costhetab, "sintheta" : sinthetab}
-#learning.store_obj(background_dict, "datasets/background_spins_" + len(Ab))
-#background_dict = learning.load_obj("datasets/background_spins_472")
-#A_background, B_background = background_dict["A"], background_dict["B"]
 
 # given guess_As and guess_Bs, this function considers all ways of removing num_remove spins from the guess list
 # it compares all of these possibilities along with not taking anything out in terms of the error from this subset to the data
@@ -402,12 +400,6 @@ def remove_spins(guess_As, guess_Bs, N, omega_larmor, tau, data, num_remove = 1,
 				ans.append(j)
 		return ans
 	guess_As, guess_Bs = np.array(guess_As), np.array(guess_Bs)
-#	background_inds = np.where(A_background ** 2 + B_background ** 2 < min(guess_As ** 2 + guess_Bs ** 2))[0]
-#	if verbose:
-#		print "background inds start with: ", min(background_inds)
-#		print "number of background spins included: ", len(background_inds)
-#	min_background_ind = max(50, len(guess_As))
-#	M_background = calc_M(A_background[min_background_ind:], B_background[min_background_ind:], N, omega_larmor, tau)
 	M_background = calc_M(A_background, B_background, N, omega_larmor, tau)
 	err, As, Bs = [], [], []
 	for subset in subset_size_range(range(len(guess_As)), len(guess_As) - num_remove, len(guess_As) - 1):
@@ -424,19 +416,25 @@ def remove_spins(guess_As, guess_Bs, N, omega_larmor, tau, data, num_remove = 1,
 	else:
 		return guess_As, guess_Bs, num_remove + 1
 
-def analyze_diamond(data_func, N, omega_larmor, verbose = False, plots = False):
+# given a data function data_func(N, tau) that represents a diamond, returns an estimation
+# of the hyperfine couplings of many c13s. The function returns, in order
+# the final estimation, the total set of estimated parameters, the set remaining after using least squares,
+# the set remaining after applying the classifier, and then the set after applying clustering. See chapter 4 of thesis.
+def analyze_diamond(data_func, N, omega_larmor, kernel = "rbf", verbose = False, plots = False):
 	tau = choose_tau_params(N)
 	data = data_func(N, tau)
 	dip_inds, windows = find_resonances(data, fit_dips_below = None)
-	print sum(dip_inds >= 3220)
+	lower_ind_cutoff = 3220 # corresponds to 15 microseconds
+	if verbose:
+		print "number of dips to measure: ", sum(dip_inds >= lower_ind_cutoff)
 	spin_dict = {}
-	for dii in range(len(dip_inds)):
-		dip_ind = dip_inds[dii]
-		if dip_ind >= 3220: # 15 microseconds and on
+	for dip_ind in dip_inds:
+		if dip_ind >= lower_ind_cutoff: # 15 microseconds and on
 			spin_dict = analyze_dip(dip_ind, tau, data_func, omega_larmor, spin_dict, N_vals = np.arange(0,256,2),
 				error_tol = .1/64, verbose = verbose, plots = plots)
-	guess_scaler = learning.load_obj("classifiers/scaler_svm_rbf_di3220_29diamonds_cxABe")
-	guess_clf = learning.load_obj("classifiers/clf_svm_rbf_di3220_29diamonds_cxABe")
+	# load the classifiers
+	guess_scaler = learning.load_obj("classifiers/scaler_svm_" + kernel + "_di3220_29diamonds_cxABe")
+	guess_clf = learning.load_obj("classifiers/clf_svm_" + kernel + "_di3220_29diamonds_cxABe")
 	def guess_classifier(features):
 		return guess_clf.predict(guess_scaler.transform([features]))
 	guess_As, guess_Bs, dataerrs, all_guess_As, all_guess_Bs, select_As, select_Bs = choose_spin_guesses(spin_dict, N, omega_larmor, tau, data, guess_classifier, x_min = 1, error_fun = squared_error)

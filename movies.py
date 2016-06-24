@@ -1,3 +1,7 @@
+# NV-spin-tomography Michael Scheer mgscheer@gmail.com
+
+# making the animation for the thesis
+
 import numpy as np
 import matplotlib.pyplot as plt
 import qutip as qt
