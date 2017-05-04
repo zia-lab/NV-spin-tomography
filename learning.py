@@ -53,8 +53,7 @@ def create_diamonds(diamond_num_list, omega_larmor, num_spins = 450):
 			N_data = data_func(N_vals, res_tau)
 			successful_fit, good_fit = True, True # did the fit succeed without throwing an error? was the error in the fit small enough?
 			try:
-				phis, xs, scaled_error = analysis.repeated_spin_fit(N_vals, N_data, error_tol = error_tol, error_fun = error_fun,
-					num_subsets = num_subsets, verbose = verbose, plots = plots)
+				phis, xs, scaled_error = analysis.repeated_spin_fit(N_vals, N_data, error_tol = error_tol, error_fun = error_fun, num_subsets = num_subsets, verbose = verbose, plots = plots)
 				good_fit = scaled_error <= error_tol
 			except analysis.FitError:
 				successful_fit, good_fit = False, False
@@ -71,7 +70,7 @@ def create_diamonds(diamond_num_list, omega_larmor, num_spins = 450):
 			"successful_fits" : successful_fits, "good_fits" : good_fits, "error_tol" : error_tol, "num_subsets" : num_subsets,
 			"phis_list" : phis_list, "xs_list" : xs_list, "scaled_errors" : scaled_errors}
 		print "store diamond_dict"
-		store_obj(diamond_dict, "diamonds/diamond_" + str(diamond_num))
+		store_obj(diamond_dict, "new_diamonds/diamond_" + str(diamond_num))
 
 # train and optionally save a support vector machine classifier
 # scaler preprocesses the data (scales it) and clf is the classifier
