@@ -50,6 +50,10 @@ def calc_M_single(A,B,N,omega_larmor,tau):
 # A_list, B_list
 # equivalent to np.array([calc_M_single(A, B, N, omega_larmor, tau) for A, B in zip(A_list, B_list)]).prod()
 def calc_M(A_list, B_list, N, omega_larmor, tau):
+	'''
+	calc_M(A_list, B_list, N, omega_larmor, tau)
+	gives back M
+	'''
 	return reduce(lambda accum, next: accum * calc_M_single(next[0], next[1], N, omega_larmor, tau), zip(A_list, B_list), 1.0)
 
 # calculates what A and B must be given the value of cos(phi) as well as omega_tilde
@@ -208,7 +212,7 @@ def spin_fit(N_vals, N_data, error_fun = squared_error, verbose = True, plots = 
 
 # repeated attempts to fit N_vals and N_data using several spins. It tries subsets of the data of increasing length
 # and then uses the best result as a guess for one final fit of the whole data. See appendix C of thesis for more detail.
-def repeated_spin_fit(N_vals, N_data, error_fun = squared_error, num_subsets = 4,
+def repeated_spin_fit(N_vals, N_data, error_tol, error_fun = squared_error, num_subsets = 4,
 	fit_fun = spin_fit_fun, extra_params = [], verbose = True, plots = True):
 	spin_fits, scaled_errors = [], []
 	for subset in [np.arange(int(len(N_vals) * r)) for r in np.linspace(0, 1, 1 + num_subsets)[1:]]:
