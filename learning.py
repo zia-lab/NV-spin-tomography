@@ -113,9 +113,9 @@ def guess_dataset(diamonds, omega_larmor, min_dip_ind = 3220, training_percent =
 		tau = diamond["tau"]
 		data = diamond["data"]
 		N = diamond["N"]
-		dip_inds = diamond["dip_inds"]
-		windows = diamond["windows"]
-		spin_dict = {}
+		dip_inds = diamond["dip_inds"] # the indices for the dips
+		windows = diamond["windows"] # where was this used?
+		spin_dict = {} # The keys to the dictionary will be a tuple (dip_ind, phi, x)
 		for dii in range(len(dip_inds)):
 			if diamond["good_fits"][dii] and dip_inds[dii] >= min_dip_ind:
 				dip_ind = dip_inds[dii]
@@ -123,29 +123,29 @@ def guess_dataset(diamonds, omega_larmor, min_dip_ind = 3220, training_percent =
 				for phi, x in zip(diamond["phis_list"][dii], diamond["xs_list"][dii]):
 					for omega_tilde, cosphi in analysis.calc_omega_tilde(phi, x, res_tau, omega_larmor):
 						A, B = analysis.calc_A_B(cosphi, res_tau, omega_larmor, omega_tilde)
-						if analysis.valid_A_B(A, B):
-							if (dip_ind, phi, x) in spin_dict:
+						if analysis.valid_A_B(A, B): # this checks for the upper bound imposed on (A,B)
+							if (dip_ind, phi, x) in spin_dict: # if (dip_ind,phi,x) is already a key in the dictionary then add another value to the list that corresponds to it
 								spin_dict[(dip_ind, phi, x)] += [(A, B, cosphi)]
-							else:
+							else: # if it is not, then simply initialize the list with the corresponding tuple
 								spin_dict[(dip_ind, phi, x)] = [(A, B, cosphi)]
-		for k in spin_dict.keys():
+		for k in spin_dict.keys(): #now iterate through they dictionary's keys
 			err = []
 			for A, B, _ in spin_dict[k]:
-				err.append(error_fun(analysis.calc_M_single(A, B, N, omega_larmor, tau), data))
+				err.append(error_fun(analysis.calc_M_single(A, B, N, omega_larmor, tau), data)) # calculate the errors from assuming data only comes from a single spin
 			min_err_ind = np.argmin(err)
 			best_A, best_B, best_cosphi = spin_dict[k][min_err_ind]
 			best_err = err[min_err_ind]
-			_, _, x = k
-			features = [best_cosphi, x, best_A, best_B, best_err]
+			_, _, x = k 
+			features = [best_cosphi, x, best_A, best_B, best_err] # this is the feature vector
 			tag = 0
-			for spin in set(zip(diamond["A"], np.abs(diamond["B"]))):
-				if is_fit(best_A, best_B, spin, A_acc = .5, B_acc = 2):
-					tag = 1
+			for spin in set(zip(diamond["A"], np.abs(diamond["B"]))): #iterate through the true spins in the diamond
+				if is_fit(best_A, best_B, spin, A_acc = .5, B_acc = 2): # arbitrary thresholds over here
+					tag = 1 # best_A and best_B have been found to correspond to a one of the true spins
 					break
-			if diamond_ind < training_percent * len(diamonds):
+			if diamond_ind < training_percent * len(diamonds): # first diamonds for the training set
 				train_X.append(features)
 				train_Y.append(tag)
-			else:
+			else: # the other ones for the test set
 				test_X.append(features)
 				test_Y.append(tag)
 	if pickle:
