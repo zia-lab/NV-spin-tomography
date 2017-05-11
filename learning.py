@@ -9,14 +9,21 @@ from sklearn.ensemble import ExtraTreesClassifier
 from sklearn.externals import joblib
 import analysis
 import NV_generator
+import pickle
 
 # store an object in a file
 def store_obj(obj, fname):
 	joblib.dump(obj, fname + ".pkl")
 
+def store_obj_2(obj, fname):
+	pickle.dump(obj, open(fname + ".pkl",'wb'))
+
 # load an object from a file
 def load_obj(fname):
 	return joblib.load(fname + ".pkl")
+
+def load_obj_2(fname):
+	return pickle.load(open(fname + ".pkl",'rb'))
 
 # decides if a fitted A and B are close enough to a spin to be counted as a fit.
 # the B tends to be harder to fit so the accuracy demanded is less.
@@ -47,7 +54,8 @@ def create_diamonds(diamond_num_list, omega_larmor, num_spins = 450):
 		successful_fits, good_fits, phis_list, xs_list, scaled_errors = [], [], [], [], []
 		print "number of dips: ", len(dip_inds)
 		for dii in range(len(dip_inds)):
-			print "dii: ", dii
+			if dii%50==0:
+				print "dii: ", dii
 			dip_ind = dip_inds[dii]
 			res_tau = tau[dip_ind]
 			N_data = data_func(N_vals, res_tau)
@@ -70,7 +78,7 @@ def create_diamonds(diamond_num_list, omega_larmor, num_spins = 450):
 			"successful_fits" : successful_fits, "good_fits" : good_fits, "error_tol" : error_tol, "num_subsets" : num_subsets,
 			"phis_list" : phis_list, "xs_list" : xs_list, "scaled_errors" : scaled_errors}
 		print "store diamond_dict"
-		store_obj(diamond_dict, "new_diamonds/diamond_" + str(diamond_num))
+		store_obj_2(diamond_dict, "diamonds/diamond_" + str(diamond_num))
 
 # train and optionally save a support vector machine classifier
 # scaler preprocesses the data (scales it) and clf is the classifier
